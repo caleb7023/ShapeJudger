@@ -34,3 +34,18 @@ For linux,
 ```bash
 $ python3 ResetData.py
 ```
+
+## How to see the plot
+
+If u use windows or mac, run this cmd in ur terminal.
+
+```bash
+$ python ShowPlot.py
+```
+
+
+For linux,
+
+```bash
+$ python3 ShowPlot.py
+```

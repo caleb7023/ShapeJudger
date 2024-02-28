@@ -5,13 +5,6 @@
 import cupy as cp
 
 # Either to show the lean progress or to debug
-import cv2
-
-import matplotlib.pyplot as plt
-
-import seaborn as sns
-
-import gc
 
 import time
 
@@ -92,6 +85,8 @@ def CreateRandomShapeImg() -> cp.array:
 def learn(SaveToDisk:bool = True):
 
     NeuronWeights = cp.load("./Data/NeuronWeights.npy")
+
+    AccuaryList = cp.load("./Data/AccuaryList.npy")
     
     with open("./Data/Terms", "r") as f:
         Terms = int(f.read())
@@ -99,18 +94,16 @@ def learn(SaveToDisk:bool = True):
     with open("./Data/TotalFails", "r") as f:
         TotalFails = int(f.read())
 
-    AccuaryList = cp.load("./Data/AccuaryList.npy")
-
     while True:
 
         StartTime = time.time()
-
-        Terms += 1
 
         Fails = 0
         
         for i in range(5000):
 
+            Terms += 1
+            
             # If shape is 1, it means the shape is rectangle.
             # If shape is 0, it means the shape is ellipse.
 
@@ -126,61 +119,21 @@ def learn(SaveToDisk:bool = True):
                 # If the shape is ellipse
                 else:
                     NeuronWeights -= Img
+            
 
-            cv2.imshow("Img", cp.uint8(Img.get() * 255))
-            a = cv2.waitKeyEx(1)
-        
         TotalFails += Fails
 
-        AccuaryList = cp.append(AccuaryList, Fails * 0.0002)
-
-        ##################
-        # Render Heatmap #
-        ##################
-            
-        fig = plt.figure()
-                
-        sns.heatmap(NeuronWeights.get(), cmap="viridis")
-        fig.canvas.draw()
-        NeuronWeightsHeatMap = cp.array(fig.canvas.renderer.buffer_rgba())
-
-        fig.clf()
-        plt.close()
-        del fig
-        gc.collect()
-
-        NeuronWeightsHeatMap = cv2.cvtColor(NeuronWeightsHeatMap.get(), cv2.COLOR_RGBA2BGR)
-
-        cv2.imshow("Neuron weights heat map", NeuronWeightsHeatMap)
-
-        #####################
-        # Render Line Graph #
-        #####################
-
-        
-        fig = plt.figure()
-                
-        plt.plot(AccuaryList.get(), scaley=False)
-        fig.canvas.draw()
-        AccuaryLineGraph = cp.array(fig.canvas.renderer.buffer_rgba())
-
-        fig.clf()
-        plt.close()
-        del fig
-        gc.collect()
-
-        AccuaryLineGraph = cv2.cvtColor(AccuaryLineGraph.get(), cv2.COLOR_RGBA2BGR)
-
-        cv2.imshow("Accuary Line Graph", AccuaryLineGraph)
+        AccuaryList = cp.append(AccuaryList, Fails * 0.00002)
 
         ##########################
         # Save datas to the disk #
         ##########################
         
         if SaveToDisk:
-            cp.save("./Data/NeuronWeights.cpy", NeuronWeights)
+
+            cp.save("./Data/NeuronWeights", NeuronWeights)
             
-            cp.save("./Data/AccuaryList.cpy", AccuaryList)
+            cp.save("./Data/AccuaryList", AccuaryList)
 
             with open("./Data/Terms", "w") as f:
                 f.write(str(Terms))
@@ -194,11 +147,11 @@ def learn(SaveToDisk:bool = True):
 
         print("Terms:{0}, Total fails:{1}, Accuracy:{2}, Time:{3}".format(Terms,
                                                                           TotalFails,
-                                                                          round(Fails * 0.0002, 3),
+                                                                          round(Fails * 0.00002, 3),
                                                                           round(time.time() - StartTime, 4)))
 
 if __name__ == "__main__":
-    learn()
+    learn(SaveToDisk=True)
 
 
 
