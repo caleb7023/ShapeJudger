@@ -2,7 +2,7 @@
 
 # Author: caleb7023
 
-import numpy as np
+import cupy as cp
 
 # Either to show the lean progress or to debug
 import cv2
@@ -13,26 +13,56 @@ import seaborn as sns
 
 import gc
 
+import time
+
 from random import getrandbits, randrange
 
 
-def Sqrt(n:int) -> float:
-    return n ** 0.5
+
+# Generate a array of X and Y pos of 128x128 array
+Size = cp.arange(0, 128)
+PosXArray, PosYArray = cp.meshgrid(Size, Size)
+PosXArray = cp.array(cp.float64(PosXArray.get()))
+PosYArray = cp.array(cp.float64(PosYArray.get()))
+del Size
 
 
 
-# Calc the distance between 2 Pos
-def Distance(Pos1:tuple, Pos2:tuple) -> float:
-    HeightX = Pos1[0] - Pos2[0]
-    WidthY  = Pos1[1] - Pos2[1]
-    return Sqrt(HeightX * HeightX + WidthY * WidthY) # looks sexy
+# Render ellipse.
+# The Pos1 should be smaller than Pos2.
+def CreateEllipse(Pos1:tuple, Pos2:tuple) -> cp.array:
+
+    global PosXArray, PosYArray
+
+    # Calc the center of the ellipse
+    EllipseCenter = ((Pos1[0] + Pos2[0]) * 0.5, (Pos1[1] + Pos2[1]) * 0.5)
+
+    # Width ratio
+    WidthRatio = ((Pos2[0] - Pos1[0]) / (Pos2[1] - Pos1[1]))
+
+    # The radius of the x axis
+    XRadius = (Pos2[0] - Pos1[0]) * 0.5
+
+    TempPosXArray, TempPosYArray = cp.array(PosXArray), cp.array(PosYArray)
+
+    TempPosXArray -= EllipseCenter[0]
+    TempPosYArray -= EllipseCenter[1]
+
+    # To create the ellipse as circle
+    TempPosYArray *= WidthRatio
+
+    # Calc all the distance from Pos1
+    DistanceArray = cp.sqrt(cp.square(TempPosXArray) + cp.square(TempPosYArray))
+
+    # If the distance were smaller than the X radius, the aug gonna be True
+    return DistanceArray < XRadius
 
 
 
-def CreateRandomShapeImg():
+def CreateRandomShapeImg() -> cp.array:
 
     # Create a img with bool
-    Img = np.zeros((128 , 128) , bool)
+    Img = cp.zeros((128 , 128) , bool)
 
     # Pos1
     Pos1 = (randrange(0, 100), randrange(0, 100))
@@ -44,82 +74,65 @@ def CreateRandomShapeImg():
     # else its gonna return img of a ellipse.
     Shape = getrandbits(1)
 
-
     if Shape:
-
-        # Fill inside of the rectangle
+        # Get an img of a rectangle
         Img[Pos1[0] : Pos2[0],
             Pos1[1] : Pos2[1]] = True
-
-
     else:
-        # The center of the ellipse
-        EllipseCenter = ((Pos1[0] + Pos2[0]) * 0.5, (Pos1[1] + Pos2[1]) * 0.5)
+        # Get an img of an ellipse
+        Img = CreateEllipse(Pos1, Pos2)
 
-        # Height and width ratio
-        WidthRatio = ((Pos2[0] - Pos1[0]) / (Pos2[1] - Pos1[1]))
-
-        # The radius of the ellipse of the x axis
-        Radius = EllipseCenter[0] - Pos1[0]
-
-        # Check is the each pixel in the ellipse or not
-        for PosX in range(127):
-
-            for PosY in range(127):
-                
-                # Scale the y axis usin WidthRatio and check is the pixel in the radius
-                if Distance(EllipseCenter, (PosX, EllipseCenter[1] + (PosY - EllipseCenter[1]) * WidthRatio)) < Radius:
-
-                    # Change the pixel False to True
-                    Img[PosX, PosY] = True
-    
     for i in range(randrange(0, 3)):
-
-        Img = np.rot90(Img)
+        Img = cp.rot90(Img)
 
     return Img, Shape
 
 
 
-def learn():
+def learn(SaveToDisk:bool = True):
 
-    NeuronWeights = np.load("./Data/NeuronWeights.npy")
+    NeuronWeights = cp.load("./Data/NeuronWeights.npy")
     
-    with open("./Data/Times", "r") as f:
-        Times = int(f.read())
+    with open("./Data/Terms", "r") as f:
+        Terms = int(f.read())
 
     with open("./Data/TotalFails", "r") as f:
         TotalFails = int(f.read())
 
-    AccuaryList = np.load("./Data/AccuaryList.npy")
+    AccuaryList = cp.load("./Data/AccuaryList.npy")
 
     while True:
 
-        Times += 1
+        StartTime = time.time()
+
+        Terms += 1
 
         Fails = 0
         
         for i in range(5000):
+
             # If shape is 1, it means the shape is rectangle.
             # If shape is 0, it means the shape is ellipse.
 
             Img, Shape = CreateRandomShapeImg()
-            Rectangle = 6 < np.sum(Img * NeuronWeights)
+            Rectangle = 6 < cp.sum(Img * NeuronWeights)
 
             if Rectangle != Shape:
                 Fails += 1
-                # The shape was rectangle
+
+                # If the shape is rectangle
                 if Shape:
                     NeuronWeights += Img
+                # If the shape is ellipse
                 else:
                     NeuronWeights -= Img
 
-            cv2.imshow("Img", np.uint8(Img * 255))
+            cv2.imshow("Img", cp.uint8(Img.get() * 255))
             a = cv2.waitKeyEx(1)
         
         TotalFails += Fails
 
-        AccuaryList = np.append(AccuaryList, Fails * 0.0002)
+        AccuaryList = cp.append(AccuaryList, Fails * 0.0002)
 
         ##################
         # Render Heatmap #
@@ -127,16 +140,16 @@ def learn():
             
         fig = plt.figure()
                 
-        sns.heatmap(NeuronWeights, cmap="viridis")
+        sns.heatmap(NeuronWeights.get(), cmap="viridis")
         fig.canvas.draw()
-        NeuronWeightsHeatMap = np.array(fig.canvas.renderer.buffer_rgba())
+        NeuronWeightsHeatMap = cp.array(fig.canvas.renderer.buffer_rgba())
 
         fig.clf()
         plt.close()
         del fig
         gc.collect()
 
-        NeuronWeightsHeatMap = cv2.cvtColor(NeuronWeightsHeatMap, cv2.COLOR_RGBA2BGR)
+        NeuronWeightsHeatMap = cv2.cvtColor(NeuronWeightsHeatMap.get(), cv2.COLOR_RGBA2BGR)
 
         cv2.imshow("Neuron weights heat map", NeuronWeightsHeatMap)
 
@@ -147,38 +160,46 @@ def learn():
         
         fig = plt.figure()
                 
-        plt.plot(AccuaryList, scaley=False)
+        plt.plot(AccuaryList.get(), scaley=False)
         fig.canvas.draw()
-        AccuaryLineGraph = np.array(fig.canvas.renderer.buffer_rgba())
+        AccuaryLineGraph = cp.array(fig.canvas.renderer.buffer_rgba())
 
         fig.clf()
         plt.close()
         del fig
         gc.collect()
 
-        AccuaryLineGraph = cv2.cvtColor(AccuaryLineGraph, cv2.COLOR_RGBA2BGR)
+        AccuaryLineGraph = cv2.cvtColor(AccuaryLineGraph.get(), cv2.COLOR_RGBA2BGR)
 
         cv2.imshow("Accuary Line Graph", AccuaryLineGraph)
 
-        ##############
-        # Save Datas #
-        ##############
+        ##########################
+        # Save datas to the disk #
+        ##########################
         
-        np.save("./Data/NeuronWeights.npy", NeuronWeights)
-        
-        np.save("./Data/AccuaryList.npy", AccuaryList)
+        if SaveToDisk:
+            cp.save("./Data/NeuronWeights.cpy", NeuronWeights)
+            
+            cp.save("./Data/AccuaryList.cpy", AccuaryList)
 
-        with open("./Data/Times", "w") as f:
-            f.write(str(Times))
+            with open("./Data/Terms", "w") as f:
+                f.write(str(Terms))
 
-        with open("./Data/TotalFails", "w") as f:
-            f.write(str(TotalFails))
+            with open("./Data/TotalFails", "w") as f:
+                f.write(str(TotalFails))
 
         ###############
-        # Print Infos #
+        # Print infos #
         ###############
 
-        print("Times:{0}, AvgAccuracy:{1}, Accuracy:{2}".format(Times, round(TotalFails / ((Times) * 5000), 3), round(Fails * 0.0002, 3)))
+        print("Terms:{0}, Total fails:{1}, Accuracy:{2}, Time:{3}".format(Terms,
+                                                                          TotalFails,
+                                                                          round(Fails * 0.0002, 3),
+                                                                          round(time.time() - StartTime, 4)))
 
 if __name__ == "__main__":
     learn()
+
+
+
+# Im out of brain cells rn

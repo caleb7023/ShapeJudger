@@ -10,7 +10,7 @@ np.save("./Data/NeuronWeights", NeuronWeights)
 
 np.save("./Data/AccuaryList", np.array([]))
 
-with open("./Data/Times", "w") as f:
+with open("./Data/Terms", "w") as f:
     f.write("0")
 
 with open("./Data/TotalFails", "w") as f:
