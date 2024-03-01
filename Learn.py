@@ -100,7 +100,7 @@ def learn(SaveToDisk:bool = True):
 
         Fails = 0
         
-        for i in range(5000):
+        for i in range(50000):
 
             Terms += 1
             
@@ -108,8 +108,7 @@ def learn(SaveToDisk:bool = True):
             # If shape is 0, it means the shape is ellipse.
 
             Img, Shape = CreateRandomShapeImg()
-            Rectangle = 6 < cp.sum(Img * NeuronWeights)
-
+            Rectangle = 0 < cp.sum(Img * NeuronWeights)
             if Rectangle != Shape:
                 Fails += 1
 
@@ -145,10 +144,10 @@ def learn(SaveToDisk:bool = True):
         # Print infos #
         ###############
 
-        print("Terms:{0}, Total fails:{1}, Accuracy:{2}, Time:{3}".format(Terms,
-                                                                          TotalFails,
-                                                                          round(Fails * 0.00002, 3),
-                                                                          round(time.time() - StartTime, 4)))
+        print("Terms:{0}, TotalFails:{1}, Accuracy:{2}%, TimePer10000Sec:{3}".format(Terms,
+                                                                                     TotalFails,
+                                                                                     round(Fails * 0.002, 1),
+                                                                                     round((time.time() - StartTime) * 0.2, 3)))
 
 if __name__ == "__main__":
     learn(SaveToDisk=True)
