@@ -5,6 +5,8 @@ This is an AI that will judge the shape is rectangle or ellipse.
 
 Most made for my personal exppppp.
 
+Requires cupy.
+
 ## How to run
 
 If u use windows or mac, run this cmd in ur terminal.

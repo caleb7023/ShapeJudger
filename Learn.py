@@ -144,7 +144,7 @@ def learn(SaveToDisk:bool = True):
         # Print infos #
         ###############
 
-        print("Terms:{0}, TotalFails:{1}, Accuracy:{2}%, SexPer10000Time:{3}".format(Terms,
+        print("Terms:{0}, TotalFails:{1}, Accuracy:{2}%, SecPer10000Time:{3}".format(Terms,
                                                                                      TotalFails,
                                                                                      round(Fails * 0.002, 1),
                                                                                      round((time.time() - StartTime) * 0.2, 3)))
