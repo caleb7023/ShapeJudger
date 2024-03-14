@@ -4,7 +4,7 @@
 
 import cupy as cp
 
-# Either to show the lean progress or to debug
+# Both to show the lean progress and to debug
 
 import time
 
